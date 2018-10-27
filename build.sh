@@ -237,6 +237,13 @@ ExecReload=/opt/bes/bin/besctl restart
 [Install]
 WantedBy=multi-user.target
 EOF
+
+cat <<EOF >/etc/profile.d/10-bes.sh
+#!/bin/bash
+export PATH=$PATH:/opt/bes/bin
+EOF
+chmod u+x /etc/profile.d/10-bes.sh
+
 systemctl daemon-reload
 systemctl enable bes
 systemctl start bes
