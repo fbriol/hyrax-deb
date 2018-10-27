@@ -211,6 +211,8 @@ autoreconf -i
 make -j 8
 make check
 sudo make install
+sudo find /opt/bes -name "*.a" -exec rm -rfv {} \;
+sudo find /opt/bes -name "*.la" -exec rm -rfv {} \;
 
 cat <<EOS >/tmp/after_install.sh
 #!/bin/bash
