@@ -1,8 +1,36 @@
-#!/bin/bash
 set -e
+#!/bin/bash
 export PREFIX="/opt/bes"
-export PKG_CONFIG_PATH=/opt/bes/lib/pkgconfig
-export PATH=/opt/bes/bin:$PATH
+export LOCAL="$HOME/local"
+export PKG_CONFIG_PATH=$LOCAL/lib/pkgconfig:$PREFIX/lib/pkgconfig
+export PATH=$LOCAL/bin:$PREFIX/bin:$PATH
+export LD_LIBRARY_PATH=$PREFIX/lib
+export NPROCESSORS=$(getconf _NPROCESSORS_ONLN)
+sudo mkdir /opt/bes
+sudo chown $LOGNAME:$LOGNAME /opt/bes
+
+#
+# HDF4
+#
+URL="https://github.com/OPENDAP/hyrax-dependencies/raw/master/downloads/hdf-4.2.10.tar.gz"
+TAR=$(basename $URL)
+DIR="${TAR%.*.*}"
+if [ ! -e $TAR ]; then
+    wget $URL
+fi
+if [ -d $DIR ]; then
+    rm -rf $DIR
+fi
+tar -xvf $TAR
+cd $DIR
+./configure CFLAGS="-fPIC -w" \
+    --disable-fortran --enable-production --disable-netcdf \
+    --with-pic  --prefix=$LOCAL --disable-shared
+make -j $NPROCESSORS
+make -j install
+# deletion of the hdf4 programs.
+rm -rf $LOCAL/bin
+cd ..
 
 #
 # HDF5
@@ -19,15 +47,15 @@ fi
 tar -xvf $TAR
 cd $DIR
 autoreconf -i
-./configure CFLAGS="-O2 -fPIC -w" --prefix=$PREFIX
-make -j 4
-sudo make -j 4 install
+./configure CFLAGS="-O2 -fPIC -w" --prefix=$LOCAL --disable-shared
+make -j $NPROCESSORS
+make -j install
 cd ..
 
 #
 # NETCDF
 #
-URL="https://github.com/OPENDAP/hyrax-dependencies/raw/master/downloads/netcdf-c-4.4.1.1.tar.gz"
+URL="https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-4.6.1.tar.gz"
 TAR=$(basename $URL)
 DIR="${TAR%.*.*}"
 if [ ! -e $TAR ]; then
@@ -38,10 +66,11 @@ if [ -d $DIR ]; then
 fi
 tar -xvf $TAR
 cd $DIR
-./configure --prefix=$PREFIX CPPFLAGS=-I$PREFIX/include	\
-	CFLAGS="-fPIC -O2" --disable-dap LDFLAGS=-L$PREFIX/lib
-make -j 4 all
-sudo make install
+./configure --prefix=$LOCAL CPPFLAGS=-I$LOCAL/include LIBS="-ldl" \
+    CFLAGS="-fPIC -O2" LDFLAGS=-L$LOCAL/lib --disable-dap --disable-shared \
+    --disable-filter-testing
+make -j $NPROCESSORS all
+make install
 cd ..
 
 #
@@ -59,7 +88,7 @@ fi
 tar -xvf $TAR
 cd $DIR
 ./configure \
-    --prefix=${PREFIX} \
+    --prefix=${LOCAL} \
     --with-geos \
     --with-geotiff=internal \
     --with-hide-internal-symbols \
@@ -109,9 +138,12 @@ cd $DIR
     --without-webp \
     --without-xerces \
     --without-xml2 \
-    --with-openjpeg 
-make -j 8 all
+    --with-openjpeg \
+    --disable-shared
+make -j $NPROCESSORS all
 make install
+rm $LOCAL/lib/libgdal.so
+cp libgdal.a $LOCAL/lib/
 cd ..
 
 #
@@ -130,9 +162,9 @@ tar -xvf $TAR
 cd $DIR
 sed -i '/AC_FUNC_MALLOC/ d' configure.ac 
 autoreconf -i
-./configure --disable-netcdf --prefix=$PREFIX CXXFLAGS="-fPIC -O2"
-make -j 8 all
-sudo make install
+./configure --disable-netcdf --disable-shared --prefix=$LOCAL CXXFLAGS="-fPIC -O2"
+make -j $NPROCESSORS all
+make install
 cd ..
 
 #
@@ -151,9 +183,9 @@ tar -xvf $TAR
 cd $DIR
 autoreconf -i
 ./configure --prefix=$PREFIX
-make -j 8 all
-make check
-sudo make install
+make -j $NPROCESSORS
+make -j $NPROCESSORS check
+make install
 cd ..
 
 #
@@ -203,16 +235,15 @@ EOF
 patch -p0 < patch
 autoreconf -i
 ./configure --prefix=$PREFIX \
-    --with-gdal=$PREFIX --with-hdf5=$PREFIX \
+    --with-gdal=$LOCAL --with-hdf5=$LOCAL --with-hdf4=$LOCAL \
     --with-cfits-inc=/usr/include \
     --with-cfits-libdir=/usr/lib/x86_64-linux-gnu \
-    --with-hdf4-include=/usr/include/hdf \
-    --with-netcdf=$PREFIX
-make -j 8
-make check
-sudo make install
-sudo find /opt/bes -name "*.a" -exec rm -rfv {} \;
-sudo find /opt/bes -name "*.la" -exec rm -rfv {} \;
+    --with-netcdf=$LOCAL --with-libdap=$PREFIX
+make -j $NPROCESSORS
+make -j $NPROCESSORS check
+make install
+find /opt/bes -name "*.a" -exec rm -rfv {} \;
+find /opt/bes -name "*.la" -exec rm -rfv {} \;
 
 cat <<EOS >/tmp/after_install.sh
 #!/bin/bash
@@ -229,6 +260,7 @@ Description=OPeNDAP BES is a modular framework allowing access to data files
 After=network.target auditd.service
 
 [Service]
+Environment='LD_LIBRARY_PATH=/opt/bes/lib'
 Type=forking
 ExecStart=/opt/bes/bin/besctl start
 ExecStop=/opt/bes/bin/besctl stop
@@ -276,7 +308,7 @@ fpm --prefix /opt/bes \
     -v 3.2.0 \
     --url https://opendap.org/software/hyrax-data-server \
     -m fbriol@groupcls.com \
-    -d libcfitsio5 -d libcurl3 -d libcurl3-gnutls -d libhdf4-0 \
+    -d libcfitsio5 -d libcurl3 -d libcurl3-gnutls \
     -d libicu60 -d libjpeg-turbo8 -d libopenjp2-7 -d libuuid1 -d libxml2 \
     --description "Back-end server software framework for OPeNDAP
 BES is a high-performance back-end server software framework for
