@@ -6,8 +6,8 @@ export PKG_CONFIG_PATH=$LOCAL/lib/pkgconfig:$PREFIX/lib/pkgconfig
 export PATH=$LOCAL/bin:$PREFIX/bin:$PATH
 export LD_LIBRARY_PATH=$PREFIX/lib
 export NPROCESSORS=$(getconf _NPROCESSORS_ONLN)
-sudo mkdir /opt/bes
-sudo chown $LOGNAME:$LOGNAME /opt/bes
+#sudo mkdir /opt/bes
+#sudo chown $LOGNAME:$LOGNAME /opt/bes
 
 #
 # HDF4
@@ -88,7 +88,7 @@ fi
 tar -xvf $TAR
 cd $DIR
 ./configure \
-    --prefix=${LOCAL} \
+    --prefix=${PREFIX} \
     --with-geos \
     --with-geotiff=internal \
     --with-hide-internal-symbols \
@@ -138,12 +138,9 @@ cd $DIR
     --without-webp \
     --without-xerces \
     --without-xml2 \
-    --with-openjpeg \
-    --disable-shared
+    --with-openjpeg
 make -j $NPROCESSORS all
 make install
-rm $LOCAL/lib/libgdal.so
-cp libgdal.a $LOCAL/lib/
 cd ..
 
 #
@@ -235,15 +232,23 @@ EOF
 patch -p0 < patch
 autoreconf -i
 ./configure --prefix=$PREFIX \
-    --with-gdal=$LOCAL --with-hdf5=$LOCAL --with-hdf4=$LOCAL \
+    --with-gdal=$PREFIX --with-hdf5=$LOCAL --with-hdf4=$LOCAL \
     --with-cfits-inc=/usr/include \
     --with-cfits-libdir=/usr/lib/x86_64-linux-gnu \
     --with-netcdf=$LOCAL --with-libdap=$PREFIX
 make -j $NPROCESSORS
 make -j $NPROCESSORS check
 make install
-find /opt/bes -name "*.a" -exec rm -rfv {} \;
-find /opt/bes -name "*.la" -exec rm -rfv {} \;
+rm -rf $PREFIX/lib/pkgconfig
+rm -rf $PREFIX/include
+rm -rf $PREFIX/bin/gdal*
+rm -rf $PREFIX/bin/dap*
+rm -rf $PREFIX/bin/ogr*
+rm -rf $PREFIX/bin/testepsg
+rm -rf $PREFIX/bin/nearblack
+find $PREFIX -name "*.a" -exec rm -rfv {} \;
+find $PREFIX -name "*.la" -exec rm -rfv {} \;
+
 
 cat <<EOS >/tmp/after_install.sh
 #!/bin/bash
