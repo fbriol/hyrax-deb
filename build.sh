@@ -190,6 +190,8 @@ cd ..
 #
 git clone https://github.com/OPENDAP/bes.git
 cd bes
+git submodule init
+git submodule update
 git checkout version-3.20.0 -b version-3.20.0
 
 cat <<EOF >patch
