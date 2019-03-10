@@ -40,7 +40,7 @@ cd ..
 #
 # HDF5
 #
-URL="https://github.com/OPENDAP/hyrax-dependencies/raw/master/downloads/hdf5-1.10.5.tar.bz2"
+URL="https://github.com/OPENDAP/hyrax-dependencies/raw/master/downloads/hdf5-1.8.17-chunks.tar.bz2"
 TAR=$(basename $URL)
 DIR="${TAR%.*.*}"
 if [ ! -e $TAR ]; then
