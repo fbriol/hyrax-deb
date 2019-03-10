@@ -6,9 +6,9 @@ export PKG_CONFIG_PATH=$LOCAL/lib/pkgconfig:$PREFIX/lib/pkgconfig
 export PATH=$LOCAL/bin:$PREFIX/bin:$PATH
 export LD_LIBRARY_PATH=$PREFIX/lib
 export NPROCESSORS=$(getconf _NPROCESSORS_ONLN)
-sudo apt install build-essential bison flex libjpeg-turbo8-dev zlib1g-dev autoconf \
+sudo apt install -y build-essential bison flex libjpeg-turbo8-dev zlib1g-dev autoconf \
    libopenjp2-7-dev libtool-bin uuid-dev libcurl4-gnutls-dev libxml2-dev \
-   libcppunit-dev libcppunit-1.14-0  git libreadline7 libncurses5-dev libreadline-dev \
+   libcppunit-dev libcppunit-1.14-0  git libreadline7 libncurses5-dev libreadline-dev \
    libcfitsio-dev libbz2-dev bc ruby ruby-dev rubygems
 sudo mkdir /opt/bes
 sudo chown $LOGNAME:$LOGNAME /opt/bes
@@ -40,7 +40,7 @@ cd ..
 #
 # HDF5
 #
-URL="https://github.com/OPENDAP/hyrax-dependencies/raw/master/downloads/hdf5-1.8.17-chunks.tar.bz2"
+URL="https://github.com/OPENDAP/hyrax-dependencies/raw/master/downloads/hdf5-1.10.5.tar.bz2"
 TAR=$(basename $URL)
 DIR="${TAR%.*.*}"
 if [ ! -e $TAR ]; then
@@ -60,9 +60,9 @@ cd ..
 #
 # NETCDF
 #
-URL="https://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-4.6.1.tar.gz"
+URL="https://github.com/Unidata/netcdf-c/archive/v4.6.2.tar.gz"
 TAR=$(basename $URL)
-DIR="${TAR%.*.*}"
+DIR="netcdf-c-4.6.2"
 if [ ! -e $TAR ]; then
     wget $URL
 fi
@@ -81,7 +81,7 @@ cd ..
 #
 # GDAL
 #
-URL="http://download.osgeo.org/gdal/2.3.2/gdal-2.3.2.tar.xz"
+URL="http://download.osgeo.org/gdal/2.3.3/gdal-2.3.3.tar.xz"
 TAR=$(basename $URL)
 DIR="${TAR%.*.*}"
 if [ ! -e $TAR ]; then
@@ -172,7 +172,7 @@ cd ..
 #
 # LIBDAP4
 #
-URL=https://github.com/OPENDAP/libdap4/archive/version-3.20.0.tar.gz
+URL=https://github.com/OPENDAP/libdap4/archive/version-3.20.3.tar.gz
 TAR=$(basename $URL)
 DIR="libdap4-${TAR%.*.*}"
 if [ ! -e $TAR ]; then
@@ -196,21 +196,21 @@ cd ..
 git clone https://github.com/OPENDAP/bes.git
 cd bes
 git submodule init
+git checkout version-3.20.3 -b version-3.20.3
 git submodule update
-git checkout version-3.20.0 -b version-3.20.0
 
 cat <<EOF >patch
 diff --git configure.ac configure.ac
-index beec0041..e7175ae8 100644
+index 7e674a84..7aa7a9b9 100644
 --- configure.ac
 +++ configure.ac
 @@ -54,7 +54,7 @@ AC_ARG_ENABLE([asan], [AS_HELP_STRING([--enable-asan], [Use the address sanitize
- 
- AC_ARG_WITH([cmr], [AS_HELP_STRING([--with-cmr], [Build and include the CMR Module (built by default in developer mode)])], 
+
+ AC_ARG_WITH([cmr], [AS_HELP_STRING([--with-cmr], [Build and include the CMR Module (built by default in developer mode)])],
      [AM_CONDITIONAL([WITH_CMR], [true])],
 -    [AM_CONDITIONAL([WITH_CMR], [AM_COND_IF([BES_DEVELOPER], [true], [flase])])])
 +    [AM_CONDITIONAL([WITH_CMR], [AM_COND_IF([BES_DEVELOPER], [true], [false])])])
- 
+
  dnl Only set CXXFLAGS if the caller didn't supply a value
  AS_IF([test -z "${CXXFLAGS+set}"], [CXXFLAGS="$cxx_debug_flags"])
 diff --git dispatch/unit-tests/pvolT.cc dispatch/unit-tests/pvolT.cc
@@ -220,67 +220,47 @@ index 58e03364..8fe5c8fb 100644
 @@ -175,7 +175,7 @@ public:
              ostringstream c;
              c << "type" << i;
- 
+
 -            DBG(cerr << "    looking for " << s << endl);
 +            DBG(cerr << "    looking for " << s.str() << endl);
- 
+
              BESContainer *d = cpv->look_for(s.str());
              CPPUNIT_ASSERT(d);
 @@ -220,7 +220,7 @@ public:
                  ostringstream c;
                  c << "type" << i;
- 
+
 -                DBG(cerr << "    looking for " << s << endl);
 +                DBG(cerr << "    looking for " << s.str() << endl);
- 
+
                  BESContainer *d = cpv->look_for(s.str());
                  CPPUNIT_ASSERT(d);
 diff --git modules/dmrpp_module/Makefile.am modules/dmrpp_module/Makefile.am
-index bdfe4c18..696349b1 100644
+index 83385c59..c085161d 100644
 --- modules/dmrpp_module/Makefile.am
 +++ modules/dmrpp_module/Makefile.am
 @@ -55,7 +55,7 @@ build_dmrpp_CPPFLAGS = $(AM_CPPFLAGS) $(H5_CPPFLAGS)
  build_dmrpp_SOURCES = $(BES_SRCS) $(BES_HDRS) $(BUILD_DMRPP) build_dmrpp.cc
- 
+
  build_dmrpp_LDADD = $(BES_DISPATCH_LIB) $(DAP_MODULE_OBJS) $(BES_EXTRA_LIBS) \
--$(H5_LDFLAGS) $(H5_LIBS) $(DAP_SERVER_LIBS) $(DAP_CLIENT_LIBS) -lz
+-$(H5_LDFLAGS) $(H5_LIBS) $(DAP_SERVER_LIBS) $(DAP_CLIENT_LIBS) $(XML2_LIBS) -lz
 +$(H5_LDFLAGS) $(H5_LIBS) $(XML2_LIBS) $(DAP_SERVER_LIBS) $(DAP_CLIENT_LIBS) -lz
- 
- EXTRA_PROGRAMS = 
- 
+
+ EXTRA_PROGRAMS =
+
 diff --git modules/dmrpp_module/unit-tests/Makefile.am modules/dmrpp_module/unit-tests/Makefile.am
-index 65c3a441..aadb1711 100644
+index d5d722f6..aadb1711 100644
 --- modules/dmrpp_module/unit-tests/Makefile.am
 +++ modules/dmrpp_module/unit-tests/Makefile.am
 @@ -8,7 +8,7 @@ AM_CPPFLAGS = $(H5_CPPFLAGS) -I$(top_srcdir)/modules -I$(top_srcdir)/modules/dmr
- 
+
  # Added -lz for ubuntu
  LIBADD = $(BES_DISPATCH_LIB) $(BES_DAP_LIB) $(BES_EXTRA_LIBS) \
--$(H5_LDFLAGS) $(H5_LIBS) $(DAP_SERVER_LIBS) $(DAP_CLIENT_LIBS) -lz
+-$(H5_LDFLAGS) $(H5_LIBS) $(DAP_SERVER_LIBS) $(DAP_CLIENT_LIBS) $(XML2_LIBS) -lz
 +$(H5_LDFLAGS) $(H5_LIBS) $(XML2_LIBS) $(DAP_SERVER_LIBS) $(DAP_CLIENT_LIBS) -lz
- 
- 
+
+
  if CPPUNIT
-diff --git modules/hdf5_handler modules/hdf5_handler
-index ca8a031b..6edaef70 160000
---- modules/hdf5_handler
-+++ modules/hdf5_handler
-@@ -1 +1 @@
--Subproject commit ca8a031bcfbb58a9b52527ae16a8c77ba64e9dd7
-+Subproject commit 6edaef709ad0026480a47ae0a3e69f7d5d72d20c
-diff --git modules/xml_data_handler/unit-tests/Makefile.am modules/xml_data_handler/unit-tests/Makefile.am
-index bb8bc190..545be389 100644
---- modules/xml_data_handler/unit-tests/Makefile.am
-+++ modules/xml_data_handler/unit-tests/Makefile.am
-@@ -3,7 +3,7 @@
- 
- # Arrange to build with the backward compatibility mode enabled.
- AM_CPPFLAGS = -I$(top_srcdir)/modules/xml_data_handler -I$(top_srcdir)/dispatch -I$(top_srcdir)/dap $(DAP_CFLAGS)
--LIBADD = $(BES_DISPATCH_LIB) $(BES_EXTRA_LIBS) $(DAP_SERVER_LIBS)
-+LIBADD = $(BES_DISPATCH_LIB) $(BES_EXTRA_LIBS) $(DAP_SERVER_LIBS) $(XML2_LIBS)
- 
- AM_LDADD = $(LIBADD)
- AM_CXXFLAGS = 
 EOF
 patch -p0 < patch
 autoreconf -i
@@ -363,7 +343,7 @@ fpm --prefix /opt/bes \
     -n bes \
     -p $HOME \
     -s dir \
-    -v 3.2.0 \
+    -v 3.2.3 \
     --url https://opendap.org/software/hyrax-data-server \
     -m fbriol@groupcls.com \
     -d libcfitsio5 -d libcurl3-gnutls \
